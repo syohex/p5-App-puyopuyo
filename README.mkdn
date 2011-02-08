@@ -1,0 +1,26 @@
+# NAME
+
+App::puyopuyo -
+
+# SYNOPSIS
+
+  use App::puyopuyo;
+
+# DESCRIPTION
+
+App::puyopuyo is
+
+# AUTHOR
+
+Syohei YOSHIDA <syohex@gmail.com>
+
+# COPYRIGHT
+
+Copyright 2011- Syohei YOSHIDA
+
+# LICENSE
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+# SEE ALSO
