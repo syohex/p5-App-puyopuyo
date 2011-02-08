@@ -4,7 +4,7 @@ use warnings;
 use 5.008_001;
 
 use Class::Accessor::Lite (
-    rw  => [ qw(stage width height color puyo animation) ],
+    rw  => [ qw(stage width height color puyo space animation) ],
 );
 
 use Term::ANSIColor ();
@@ -13,8 +13,8 @@ use List::MoreUtils qw(none);
 our $VERSION = '0.01';
 
 # constant values
-my $SPACE  = ord ' ';
 my $ERASED = -1;
+my $OJAMA  = ord 'O';
 
 my ($ROW_MAX, $COLUMN_MAX);
 
@@ -25,6 +25,7 @@ sub new {
     my $height = delete $args{height};
     my $color  = delete $args{color} || 0;
     my $puyo   = delete $args{puyo};
+    my $space  = delete $args{space} || ' ';
     my $animation = delete $args{animation} || 0;
 
     unless ($width && $height) {
@@ -37,6 +38,7 @@ sub new {
     $self->height($height);
     $self->color($color);
     $self->puyo($puyo);
+    $self->space($space);
     $self->animation($animation);
 
     $ROW_MAX    = $height - 1;
@@ -79,7 +81,7 @@ sub load_puyo {
             Carp::croak("Input puyo is too long width\n");
         }
 
-        unshift @rows, [ map { ord $_; } @puyos];
+        unshift @rows, [ map { ord (uc $_); } @puyos];
     }
 
     my $stage = $self->_rows_to_columns( \@rows );
@@ -94,7 +96,7 @@ sub _rows_to_columns {
         my @cols;
         for my $row (0..$ROW_MAX) {
             my $puyo = $rows_ref->[$row]->[$col];
-            push @cols, defined $puyo ? $puyo : $SPACE;
+            push @cols, $puyo;
         }
         push @columns, [ @cols ];
     }
@@ -110,7 +112,7 @@ sub _coloumns_to_rows {
         my @row_puyos;
         for my $i (0..$COLUMN_MAX) {
             my $puyo = $columns_ref->[$i]->[$j];
-            push @row_puyos, defined $puyo ? $puyo : $SPACE;
+            push @row_puyos, $puyo;
         }
         push @rows, [ @row_puyos ];
     }
@@ -121,6 +123,8 @@ sub _coloumns_to_rows {
 sub run {
     my $self = shift;
     my $stage = $self->stage;
+
+    $self->_animate if $self->animation;
 
     my ($erase_num, $rensa) = (0, 0);
     while (1) {
@@ -142,14 +146,19 @@ sub run {
         last if $erase_num == 0;
 
         $self->_move_puyo();
-
-        if ($self->animation) {
-            $self->print_stage();
-            sleep 1;
-        }
+        $self->_animate(++$rensa) if $self->animation;
     }
 
     $self->_coloumns_to_rows($self->stage);
+}
+
+sub _animate {
+    my ($self, $rensa) = @_;
+
+    _clear_terminal();
+    $self->print_stage();
+    printf "%d combo\n", $rensa if defined $rensa;
+    sleep 1;
 }
 
 sub _move_puyo {
@@ -159,7 +168,6 @@ sub _move_puyo {
     for my $col (@{$self->stage}) {
         my @puyos = grep { $_ >= 1 } @{$col};
         my $length = length @puyos;
-        push @puyos, $SPACE for ($length..$col_max);
         $col = \@puyos;
     }
 }
@@ -170,6 +178,20 @@ sub _erase_puyo {
     for my $neighbor (@{$neighbors}) {
         my ($x, $y) = @{$neighbor}[0,1];
         $self->stage->[$x]->[$y] = $ERASED;
+
+        for my $row ($y-1, $y+1) {
+            next unless $row >= 0 && $row <= $ROW_MAX;
+            next unless defined $self->stage->[$x]->[$row];
+            next unless $self->stage->[$x]->[$row] == $OJAMA;
+            $self->stage->[$x]->[$row] = $ERASED;
+        }
+
+        for my $col ($x-1, $x+1) {
+            next unless $col >= 0 && $col <= $COLUMN_MAX;
+            next unless defined $self->stage->[$col]->[$y];
+            next unless $self->stage->[$col]->[$y] == $OJAMA;
+            $self->stage->[$col]->[$y] = $ERASED;
+        }
     }
 }
 
@@ -177,24 +199,27 @@ sub _search_same_puyo {
     my ($stage, $color, $col, $row, $neighbors) = @_;
     my $puyo = $stage->[$col]->[$row];
 
-    return unless defined $puyo;
-    return if $puyo == $SPACE || $puyo == $ERASED;
+    return if !defined $puyo || $puyo == $ERASED || $puyo == $OJAMA;
     return if $color != $puyo;
 
     push @{$neighbors}, [$col, $row];
 
     for my $c ($col-1, $col+1) {
         next unless $c >= 0 && $c <= $COLUMN_MAX;
+        next unless defined $stage->[$c]->[$row];
         if (is_already_checked($c, $row, $neighbors)
-                && defined $stage->[$c]->[$row] && $color == $stage->[$c]->[$row]) {
+                && $color == $stage->[$c]->[$row]) {
             _search_same_puyo($stage, $color, $c, $row, $neighbors);
         }
     }
 
-    return unless $row+1 >= 0 && $row <= $ROW_MAX;
-    if (is_already_checked($col, $row+1, $neighbors)
-            && defined $stage->[$col]->[$row+1] && $color == $stage->[$col]->[$row+1]) {
-        _search_same_puyo($stage, $color, $col, $row+1, $neighbors);
+    for my $r ($row-1, $row+1) {
+        next unless $r >= 0 && $r <= $ROW_MAX;
+        next unless defined $stage->[$col]->[$r];
+        if (is_already_checked($col, $r, $neighbors)
+                && $color == $stage->[$col]->[$r]) {
+            _search_same_puyo($stage, $color, $col, $r, $neighbors);
+        }
     }
 }
 
@@ -203,8 +228,8 @@ sub print_stage {
 
     for (my $row = $ROW_MAX; $row >= 0; $row--) {
         for (my $col = 0; $col <= $COLUMN_MAX; $col++) {
-            my $puyo = $self->stage->[$col]->[$row];
-            next unless defined $puyo;
+            my $puyo = defined $self->stage->[$col]->[$row]
+                ? $self->stage->[$col]->[$row] : ord ' ';
 
             $self->_print_puyo($puyo);
         }
@@ -214,23 +239,23 @@ sub print_stage {
 }
 
 my %COLORS = (
-    R => 'red', B => 'blue', G => 'green', Y => 'yellow',
+    R => 'red', B => 'blue', G => 'green', Y => 'yellow', O => 'white',
 );
 
 sub _print_puyo {
-    my ($self, $puyo_ord) = @_;
+    my ($self, $puyo) = @_;
 
-    my $chr = chr $puyo_ord;
+    my $chr = chr $puyo;
     if ($self->color) {
         if (exists $COLORS{$chr}) {
             print Term::ANSIColor::color $COLORS{$chr};
             print defined $self->puyo ? $self->puyo : $chr;
             print Term::ANSIColor::color 'reset';
-        } else {
-            print $chr;
+        } elsif ($chr eq ' ') {
+            print $self->space;
         }
-    } else {
-        print $chr;
+    } elsif ($chr eq ' ') {
+        print $self->space;
     }
 }
 
@@ -259,6 +284,9 @@ App::puyopuyo - PuyoPuyo resolver
 =head1 SYNOPSIS
 
   use App::puyopuyo;
+
+  my $app = App::puyopuyo->new(width => 6, height => 13, animation => 1);
+  $app->load_puyo("rrgg\nggrr\nyybb\n");
 
 =head1 DESCRIPTION
 
