@@ -24,7 +24,7 @@ sub new {
     my $height = delete $args{height};
     my $color  = delete $args{color} || 0;
     my $puyo   = delete $args{puyo};
-    my $space  = delete $args{space} || ' ';
+    my $double_space  = delete $args{double_space} || undef;
     my $animation = delete $args{animation} || 0;
 
     unless ($width && $height) {
@@ -37,7 +37,7 @@ sub new {
     $self->height($height);
     $self->color($color);
     $self->puyo($puyo);
-    $self->space($space);
+    $self->space( defined $double_space ? '  ' : ' ');
     $self->animation($animation);
 
     $ROW_MAX    = $height - 1;
