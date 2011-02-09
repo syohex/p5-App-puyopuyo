@@ -44,7 +44,7 @@ sub new {
     $self->height($height);
     $self->color($color);
     $self->puyo($puyo);
-    $self->space( defined $double_space ? '  ' : ' ');
+    $self->space(defined $double_space ? ' ' x 2 : ' ');
     $self->animation($animation);
 
     $ROW_MAX    = $height - 1;
