@@ -10,6 +10,12 @@ use App::puyopuyo;
 
 binmode STDOUT, ":utf8";
 
+#
+# I check this sample program using gnome-terminal.
+# If you use gnome-terminal,
+# launch gnome-terminal with environment variable VTE_CJK_WIDTH=1
+#
+
 my $app = App::puyopuyo->new(
     width => 6,
     height => 13,
