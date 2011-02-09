@@ -50,7 +50,7 @@ sub load_puyo {
     my ($self, $data) = @_;
 
     my $input_data;
-    if (ref $data ne '') {
+    if (ref $data) {
         if (ref $data eq 'GLOB' || ref $data eq 'SCALAR') {
             $input_data = $data;
         } else {
@@ -173,23 +173,24 @@ sub _move_puyo {
 
 sub _erase_puyo {
     my ($self, $neighbors) = @_;
+    my $stage = $self->stage;
 
     for my $neighbor (@{$neighbors}) {
         my ($x, $y) = @{$neighbor}[0,1];
-        $self->stage->[$x]->[$y] = $ERASED;
+        $stage->[$x]->[$y] = $ERASED;
 
         for my $row ($y-1, $y+1) {
             next unless $row >= 0 && $row <= $ROW_MAX;
-            next unless defined $self->stage->[$x]->[$row];
-            next unless $self->stage->[$x]->[$row] == $OJAMA;
-            $self->stage->[$x]->[$row] = $ERASED;
+            next unless defined $stage->[$x]->[$row];
+            next unless $stage->[$x]->[$row] == $OJAMA;
+            $stage->[$x]->[$row] = $ERASED;
         }
 
         for my $col ($x-1, $x+1) {
             next unless $col >= 0 && $col <= $COLUMN_MAX;
             next unless defined $self->stage->[$col]->[$y];
-            next unless $self->stage->[$col]->[$y] == $OJAMA;
-            $self->stage->[$col]->[$y] = $ERASED;
+            next unless $stage->[$col]->[$y] == $OJAMA;
+            $stage->[$col]->[$y] = $ERASED;
         }
     }
 }
@@ -205,18 +206,18 @@ sub _search_same_puyo {
 
     for my $c ($col-1, $col+1) {
         next unless $c >= 0 && $c <= $COLUMN_MAX;
+        next if is_already_checked($c, $row, $neighbors);
         next unless defined $stage->[$c]->[$row];
-        if (is_already_checked($c, $row, $neighbors)
-                && $color == $stage->[$c]->[$row]) {
+        if ($color == $stage->[$c]->[$row]) {
             _search_same_puyo($stage, $color, $c, $row, $neighbors);
         }
     }
 
     for my $r ($row-1, $row+1) {
         next unless $r >= 0 && $r <= $ROW_MAX;
+        next if is_already_checked($col, $r, $neighbors);
         next unless defined $stage->[$col]->[$r];
-        if (is_already_checked($col, $r, $neighbors)
-                && $color == $stage->[$col]->[$r]) {
+        if ($color == $stage->[$col]->[$r]) {
             _search_same_puyo($stage, $color, $col, $r, $neighbors);
         }
     }
