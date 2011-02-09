@@ -56,21 +56,24 @@ sub new {
 sub load_puyo {
     my ($self, $data) = @_;
 
-    my $input_data;
-    if (ref $data) {
-        if (ref $data eq 'GLOB' || ref $data eq 'SCALAR') {
-            $input_data = $data;
-        } else {
-            Carp::croak("Error: invalid data type. "
-                            . "It should be string or string ref or FILE handle\n");
-        }
+    my @puyo_lines;
+    if (ref $data eq 'GLOB') {
+        @puyo_lines = <$data>;
     } else {
-        $input_data = \$data;
-    }
+        my $input_data;
+        if (ref $data eq 'SCALAR') {
+            $input_data = $data;
+        } elsif (! ref $data) {
+            $input_data = \$data;
+        } else {
+            Carp::croak("Error: Invalid Argument type"
+                            , "(Str or Str ref or FILE handle)\n");
+        }
 
-    open my $fh, "<", $input_data or Carp::croak("Can't read input data\n");
-    my @puyo_lines = <$fh>;
-    close $fh;
+        open my $fh, "<", $input_data or Carp::croak("Can't read input data\n");
+        @puyo_lines = <$fh>;
+        close $fh;
+    }
 
     @puyo_lines = grep { !m{^\s*$} } @puyo_lines;
 
