@@ -15,6 +15,13 @@ our $VERSION = '0.01';
 my $ERASED = -1;
 my $OJAMA  = ord 'O';
 
+# color palette
+my %COLORS = (
+    R => 'red', B => 'blue', G => 'green',
+    Y => 'yellow', C => 'cyan', M => 'magenta',
+    O => 'white', # 'O' means Ojama puyo.
+);
+
 my ($ROW_MAX, $COLUMN_MAX);
 
 sub new {
@@ -237,10 +244,6 @@ sub print_stage {
     }
     print "\n"
 }
-
-my %COLORS = (
-    R => 'red', B => 'blue', G => 'green', Y => 'yellow', O => 'white',
-);
 
 sub _print_puyo {
     my ($self, $puyo) = @_;
