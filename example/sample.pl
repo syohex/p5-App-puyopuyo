@@ -15,7 +15,7 @@ my $app = App::puyopuyo->new(
     height => 13,
     color => 1,
     puyo => '●',
-    space => '  ',
+    double_space => 1,
     animation => 1,
 );
 
