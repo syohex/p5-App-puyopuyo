@@ -9,7 +9,15 @@ use App::puyopuyo;
 
     my $data = "R\n";
     $app->load_puyo($data);
-    is_deeply($app->stage, [[ ord 'R']], "1x1");
+    is_deeply($app->stage, [[ ord 'R']], "1x1 input Str");
+
+    $app->load_puyo(\$data);
+    is_deeply($app->stage, [[ ord 'R']], "1x1 input Str Ref");
+
+    open my $fh, "<", \$data;
+    $app->load_puyo($fh);
+    is_deeply($app->stage, [[ ord 'R']], "1x1 input File Handle");
+    close $fh;
 }
 
 {
