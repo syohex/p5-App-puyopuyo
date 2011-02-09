@@ -6,7 +6,9 @@ all_from 'lib/App/puyopuyo.pm';
 readme_markdown_from('lib/App/puyopuyo.pm');
 
 test_requires 'Test::More' => 0.88;
-test_requires 'Test::Requires';
+test_requires 'Test::Exception';
+
+recommends 'Data::Section::Simple';
 
 auto_set_repository();
 WriteAll;
