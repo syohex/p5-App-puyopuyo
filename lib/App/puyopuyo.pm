@@ -8,7 +8,6 @@ use Class::Accessor::Lite (
 );
 
 use Term::ANSIColor ();
-use List::MoreUtils qw(none);
 
 our $VERSION = '0.01';
 
@@ -246,22 +245,32 @@ sub _print_puyo {
     my ($self, $puyo) = @_;
 
     my $chr = chr $puyo;
-    if ($self->color) {
-        if (exists $COLORS{$chr}) {
+    if ($chr eq ' ') {
+            print $self->space;
+    } else {
+        if ($self->color) {
             print Term::ANSIColor::color $COLORS{$chr};
             print defined $self->puyo ? $self->puyo : $chr;
             print Term::ANSIColor::color 'reset';
-        } elsif ($chr eq ' ') {
-            print $self->space;
+        } else {
+            print $chr;
         }
-    } elsif ($chr eq ' ') {
-        print $self->space;
     }
+}
+
+sub _any(&@) {
+    my $cb = shift;
+
+    for my $element (@_) {
+        local $_ = $element;
+        return 1 if $cb->($element);
+    }
+    return 0;
 }
 
 sub is_already_checked {
     my ($col, $row, $neighbors) = @_;
-    return none { $_->[0] == $col && $_->[1] == $row} @{$neighbors};
+    return _any { $_->[0] == $col && $_->[1] == $row } @{$neighbors};
 }
 
 sub _clear_terminal {
