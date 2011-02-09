@@ -3,10 +3,7 @@ use strict;
 use warnings;
 use 5.008_001;
 
-use Class::Accessor::Lite (
-    rw  => [ qw(stage width height color puyo space animation) ],
-);
-
+use Carp ();
 use Term::ANSIColor ();
 
 our $VERSION = '0.01';
@@ -27,28 +24,23 @@ my ($ROW_MAX, $COLUMN_MAX);
 sub new {
     my ($class, %args) = @_;
 
-    my $width  = delete $args{width};
-    my $height = delete $args{height};
-    my $color  = delete $args{color} || 0;
-    my $puyo   = delete $args{puyo};
-    my $double_space  = delete $args{double_space} || undef;
-    my $animation = delete $args{animation} || 0;
+    my $self = bless {}, $class;
+    $self->{width}  = delete $args{width};
+    $self->{height} = delete $args{height};
 
-    unless ($width && $height) {
+    unless ($self->{width} && $self->{height}) {
         Carp::croak("Error: please specify 'width' and 'height'\n");
     }
 
-    my $self = bless {}, $class;
+    $self->{color}  = delete $args{color} || 0;
+    $self->{puyo}   = delete $args{puyo};
+    $self->{animation} = delete $args{animation} || 0;
 
-    $self->width($width);
-    $self->height($height);
-    $self->color($color);
-    $self->puyo($puyo);
-    $self->space(defined $double_space ? ' ' x 2 : ' ');
-    $self->animation($animation);
+    my $double_space  = delete $args{double_space} || undef;
+    $self->{space} = defined $double_space ? ' ' x 2 : ' ';
 
-    $ROW_MAX    = $height - 1;
-    $COLUMN_MAX = $width - 1;
+    $ROW_MAX    = $self->{height} - 1;
+    $COLUMN_MAX = $self->{width} - 1;
 
     return $self;
 }
@@ -77,7 +69,7 @@ sub load_puyo {
 
     @puyo_lines = grep { !m{^\s*$} } @puyo_lines;
 
-    if (length @puyo_lines > $self->height) {
+    if (scalar @puyo_lines > $self->{height}) {
         Carp::croak("Input puyo is too long height\n");
     }
 
@@ -86,15 +78,15 @@ sub load_puyo {
         chomp $puyo_line;
         my @puyos = split //, $puyo_line;
 
-        if (length @puyos > $self->width) {
+        if (scalar @puyos > $self->{width}) {
             Carp::croak("Input puyo is too long width\n");
         }
 
-        unshift @rows, [ map { ord (uc $_); } @puyos];
+        unshift @rows, [ map { ord (uc $_) } @puyos];
     }
 
     my $stage = $self->_rows_to_columns( \@rows );
-    $self->stage( $stage );
+    $self->{stage} = $stage;
 }
 
 sub _rows_to_columns {
@@ -123,7 +115,7 @@ sub _coloumns_to_rows {
             my $puyo = $columns_ref->[$i]->[$j];
             push @row_puyos, $puyo;
         }
-        push @rows, [ @row_puyos ];
+        push @rows, [ grep { defined $_ && $_ != ord ' ' } @row_puyos ];
     }
 
     return [ @rows ];
@@ -131,9 +123,9 @@ sub _coloumns_to_rows {
 
 sub run {
     my $self = shift;
-    my $stage = $self->stage;
+    my $stage = $self->{stage};
 
-    $self->_animate if $self->animation;
+    $self->_animate if $self->{animation};
 
     my ($erase_num, $rensa) = (0, 0);
     while (1) {
@@ -155,10 +147,10 @@ sub run {
         last if $erase_num == 0;
 
         $self->_move_puyo();
-        $self->_animate(++$rensa) if $self->animation;
+        $self->_animate(++$rensa) if $self->{animation};
     }
 
-    $self->_coloumns_to_rows($self->stage);
+    $self->_coloumns_to_rows($self->{stage});
 }
 
 sub _animate {
@@ -172,10 +164,9 @@ sub _animate {
 
 sub _move_puyo {
     my $self = shift;
-    my $col_max = $self->width - 1;
 
-    for my $col (@{$self->stage}) {
-        my @puyos = grep { $_ >= 1 } @{$col};
+    for my $col (@{$self->{stage}}) {
+        my @puyos = grep { defined $_ && $_ >= 1 } @{$col};
         my $length = length @puyos;
         $col = \@puyos;
     }
@@ -183,7 +174,7 @@ sub _move_puyo {
 
 sub _erase_puyo {
     my ($self, $neighbors) = @_;
-    my $stage = $self->stage;
+    my $stage = $self->{stage};
 
     for my $neighbor (@{$neighbors}) {
         my ($x, $y) = @{$neighbor}[0,1];
@@ -198,7 +189,7 @@ sub _erase_puyo {
 
         for my $col ($x-1, $x+1) {
             next unless $col >= 0 && $col <= $COLUMN_MAX;
-            next unless defined $self->stage->[$col]->[$y];
+            next unless defined $stage->[$col]->[$y];
             next unless $stage->[$col]->[$y] == $OJAMA;
             $stage->[$col]->[$y] = $ERASED;
         }
@@ -235,11 +226,12 @@ sub _search_same_puyo {
 
 sub print_stage {
     my $self = shift;
+    my $stage = $self->{stage};
 
     for (my $row = $ROW_MAX; $row >= 0; $row--) {
         for (my $col = 0; $col <= $COLUMN_MAX; $col++) {
-            my $puyo = defined $self->stage->[$col]->[$row]
-                ? $self->stage->[$col]->[$row] : ord ' ';
+            my $puyo = defined $stage->[$col]->[$row]
+                ? $stage->[$col]->[$row] : ord ' ';
 
             $self->_print_puyo($puyo);
         }
@@ -253,11 +245,11 @@ sub _print_puyo {
 
     my $chr = chr $puyo;
     if ($chr eq ' ') {
-            print $self->space;
+            print $self->{space};
     } else {
-        if ($self->color) {
+        if ($self->{color}) {
             print Term::ANSIColor::color $COLORS{$chr};
-            print defined $self->puyo ? $self->puyo : $chr;
+            print defined $self->{puyo} ? $self->{puyo} : $chr;
             print Term::ANSIColor::color 'reset';
         } else {
             print $chr;
